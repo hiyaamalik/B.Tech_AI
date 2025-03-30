@@ -1,0 +1,143 @@
+---
+title: "Converted Notebook"
+output: html_document
+---
+
+Loading Libraries
+
+```{r}
+if(!require(dplyr)) install.packages("dplyr")
+if(!require(ggplot2)) install.packages("ggplot2")
+if(!require(caret)) install.packages("caret")
+if(!require(rpart)) install.packages("rpart")
+if(!require(rpart.plot)) install.packages("rpart.plot")
+
+# Load the libraries
+library(dplyr)
+library(ggplot2)
+library(caret)
+library(rpart)
+library(rpart.plot)
+```
+
+Loading and Exploring Data
+
+```{r}
+df <- read.csv("/content/Skin_Type_OG.csv")
+```
+
+```{r}
+str(df)
+```
+
+```{r}
+sum(is.na(df))
+```
+
+```{r}
+head(df)
+```
+
+Data Preprocessing
+
+```{r}
+df$Gender <- as.factor(df$Gender)
+df$Hydration_Level <- as.factor(df$Hydration_Level)
+df$Oil_Level <- as.factor(df$Oil_Level)
+df$Sensitivity <- as.factor(df$Sensitivity)
+df$Skin_Type <- as.factor(df$Skin_Type)
+```
+
+```{r}
+summary(df)
+```
+
+EDA
+
+```{r}
+ggplot(df, aes(x = Skin_Type, fill = Skin_Type)) +
+  geom_bar() +
+  theme_minimal() +
+  labs(title = "Distribution of Skin Types", x = "Skin Type", y = "Count")
+```
+
+```{r}
+ggplot(df, aes(x = Skin_Type, y = Age, fill = Skin_Type)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Age Distribution across Skin Types")
+```
+
+Data Splitting
+
+```{r}
+set.seed(123)
+
+# Create an 80-20 train-test split
+train_index <- createDataPartition(df$Skin_Type, p = 0.8, list = FALSE)
+train_data <- df[train_index, ]
+test_data <- df[-train_index, ]
+
+# Check split sizes
+cat("Training Set:", nrow(train_data), "rows\n")
+cat("Testing Set:", nrow(test_data), "rows\n")
+```
+
+Training Model
+
+```{r}
+decision_tree <- rpart(Skin_Type ~ ., data = train_data, method = "class")
+
+# Visualize the Decision Tree
+rpart.plot(decision_tree, main = "Decision Tree for Skin Type Classification")
+```
+
+Model Evaluation
+
+```{r}
+predictions <- predict(decision_tree, test_data, type = "class")
+
+# Confusion Matrix
+conf_matrix <- confusionMatrix(predictions, test_data$Skin_Type)
+print(conf_matrix)
+
+# Extract performance metrics
+report <- data.frame(
+  Class = rownames(conf_matrix$byClass),
+  Precision = conf_matrix$byClass[, "Precision"],
+  Recall = conf_matrix$byClass[, "Recall"],
+  F1_Score = 2 * (conf_matrix$byClass[, "Precision"] * conf_matrix$byClass[, "Recall"]) /
+             (conf_matrix$byClass[, "Precision"] + conf_matrix$byClass[, "Recall"])
+)
+
+# Print classification report
+print(report)
+
+# Print overall accuracy
+cat("\nOverall Accuracy:", conf_matrix$overall["Accuracy"])
+```
+
+Testing with an example
+
+```{r}
+example <- data.frame(Age = 30, Gender = "Female", Hydration_Level = "High",
+                      Oil_Level = "Medium", Sensitivity = "Low",
+                      Humidity = 50, Temperature = 20)
+
+# Convert categorical features to factors
+example$Gender <- as.factor(example$Gender)
+example$Hydration_Level <- as.factor(example$Hydration_Level)
+example$Oil_Level <- as.factor(example$Oil_Level)
+example$Sensitivity <- as.factor(example$Sensitivity)
+
+# Predict Skin Type for new data
+example_prediction <- predict(decision_tree, example, type = "class")
+print(example_prediction)
+```
+
+```{r}
+library(rmarkdown)
+rmarkdown::draft("SkinTypeClassification.Rmd", template = "github_document", package = "rmarkdown", edit = FALSE)
+
+```
+
